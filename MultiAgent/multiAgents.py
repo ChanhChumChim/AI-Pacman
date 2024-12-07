@@ -168,64 +168,44 @@ class MinimaxAgent(MultiAgentSearchAgent):
             That means pacman played 3 times and all ghosts played 3 times
         """
 
-        def miniMax(gameState,agent,depth):
-            result = []
-
-            # Terminate state #
-            if not gameState.getLegalActions(agent):
-                return self.evaluationFunction(gameState),0
-
-            # Reached max depth #
-            if depth == self.depth:
-                return self.evaluationFunction(gameState),0
-
-            # All ghosts have finised one round: increase depth(last ghost) #
-            if agent == gameState.getNumAgents() - 1:
-                depth += 1
-
-            # Calculate nextAgent #
-
-            # Last ghost: nextAgent = pacman #
-            if agent == gameState.getNumAgents() - 1:
-                nextAgent = self.index
-
-            # Availiable ghosts. Pick next ghost #
-            else:
-                nextAgent = agent + 1
-
-            # For every successor find minimax value #
-            for action in gameState.getLegalActions(agent):
-
-                if not result: # First move
-                    nextValue = miniMax(gameState.generateSuccessor(agent,action),nextAgent,depth)
-
-                    # Fix result with minimax value and action #
-                    result.append(nextValue[0])
-                    result.append(action)
+        def max_agent(state: GameState, depth: int):
+            if (state.isWin() or state.isLose()):
+                return state.getScore()
+            
+            pac_actions = state.getLegalActions(0)
+            best_score = -10000000000000000000;
+            for action in pac_actions:
+                score = exp_agent(state.generateSuccessor(0, action), depth, 1) #exp on the next pacman action
+                if (score > best_score):
+                    best_score = score
+                    best_pac_action = action
+            if (depth == 0):
+                return best_pac_action #This would only run if
+            else: 
+                return best_score   
+            
+        
+        def exp_agent(state: GameState, depth: int, ghost_index: int):
+            if (state.isWin() or state.isLose()):
+                return state.getScore()
+            
+            last_ghost_index = state.getNumAgents() - 1 #get number of ghost in the game
+            best_score = 10000000000000000000
+            actions = state.getLegalActions(ghost_index)
+            for action in actions:
+                if (ghost_index == last_ghost_index):
+                    if (depth == self.depth - 1): #this is the leaf of the minimax tree
+                        score = self.evaluationFunction(state.generateSuccessor(ghost_index, action))
+                    else: #Get to the next depth
+                        score = max_agent(state.generateSuccessor(ghost_index, action), depth + 1)
                 else:
-
-                    # Check if miniMax value is better than the previous one #
-
-                    previousValue = result[0] # Keep previous value. Minimax
-                    nextValue = miniMax(gameState.generateSuccessor(agent,action),nextAgent,depth)
-
-                    # Max agent: Pacman #
-                    if agent == self.index:
-                        if nextValue[0] > previousValue:
-                            result[0] = nextValue[0]
-                            result[1] = action
-
-                    # Min agent: Ghost #
-                    else:
-                        if nextValue[0] < previousValue:
-                            result[0] = nextValue[0]
-                            result[1] = action
-            return result
-
-        # Call minMax with initial depth = 0 and get an action #
-        # Pacman plays first -> agent == 0 or self.index       #
-
-        return miniMax(gameState,self.index,0)[1]
+                    score = exp_agent(state.generateSuccessor(ghost_index, action), depth, ghost_index + 1) #Continue to the next ghost action
+                    
+                if (score < best_score):
+                    best_score = score  #best_score needs to be the smallest ones because we have to find the "best" action not the "highest score possible" action.
+                                        #This algorithm assumes the ghosts would also makes the best action. So the best score would be the smallest score in that sub gametree
+            return best_score
+        return max_agent(gameState, 0) #Current base case
 
 class AlphaBetaAgent(MultiAgentSearchAgent):
     """
