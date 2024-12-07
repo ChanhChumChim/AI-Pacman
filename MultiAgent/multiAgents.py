@@ -229,99 +229,73 @@ class MinimaxAgent(MultiAgentSearchAgent):
 
 class AlphaBetaAgent(MultiAgentSearchAgent):
     """
-      Your minimax agentwith alpha-beta pruning (question 3)
+    Your minimax agent with alpha-beta pruning (question 3)
     """
 
-    def getAction(self, gameState):
+    def getAction(self, gameState: GameState):
         """
-          Returns the minimax action using self.depth and self.evaluationFunction
+        Returns the minimax action using self.depth and self.evaluationFunction
         """
-        "*** YOUR CODE HERE ***"
+        def alphaBeta(agentIndex, depth, gameState, alpha, beta):
+            """
+            Hàm Alpha-Beta Pruning chính.
+            - agentIndex: Chỉ số tác nhân hiện tại (Pacman = 0, Ghosts >= 1).
+            - depth: Độ sâu hiện tại trong cây tìm kiếm.
+            - gameState: Trạng thái hiện tại của trò chơi.
+            - alpha: Giá trị alpha hiện tại (cận dưới cho tác nhân tối đa).
+            - beta: Giá trị beta hiện tại (cận trên cho tác nhân tối thiểu).
+            """
+            # Điều kiện dừng: trạng thái kết thúc hoặc đạt độ sâu tối đa
+            if gameState.isWin() or gameState.isLose() or depth == self.depth:
+                return self.evaluationFunction(gameState)
 
-        """
-            AB: receives a state an agent(0,1,2...) and current depth
-            AB: return a list:[cost,action]
-            Example with depth: 3
-            That means pacman played 3 times and all ghosts 3 times
-            AB: Cuts some nodes. That means we can use higher depth in the same
-            time of minimax algorithm in lower depth
-        """
+            if agentIndex == 0:  # Pacman (người chơi tối đa)
+                return maxValue(agentIndex, depth, gameState, alpha, beta)
+            else:  # Ghosts (người chơi tối thiểu)
+                return minValue(agentIndex, depth, gameState, alpha, beta)
 
-        def AB(gameState,agent,depth,a,b):
-            result = []
+        def maxValue(agentIndex, depth, gameState, alpha, beta):
+            """
+            Hàm tính giá trị tối đa cho Pacman.
+            """
+            value = float("-inf")
+            for action in gameState.getLegalActions(agentIndex):
+                successor = gameState.generateSuccessor(agentIndex, action)
+                value = max(value, alphaBeta(1, depth, successor, alpha, beta))
+                if value > beta:  # Cắt tỉa
+                    return value
+                alpha = max(alpha, value)
+            return value
 
-            # Terminate state #
-            if not gameState.getLegalActions(agent):
-                return self.evaluationFunction(gameState),0
+        def minValue(agentIndex, depth, gameState, alpha, beta):
+            """
+            Hàm tính giá trị tối thiểu cho Ghosts.
+            """
+            value = float("inf")
+            nextAgent = (agentIndex + 1) % gameState.getNumAgents()
+            nextDepth = depth + 1 if nextAgent == 0 else depth
+            for action in gameState.getLegalActions(agentIndex):
+                successor = gameState.generateSuccessor(agentIndex, action)
+                value = min(value, alphaBeta(nextAgent, nextDepth, successor, alpha, beta))
+                if value < alpha:  # Cắt tỉa
+                    return value
+                beta = min(beta, value)
+            return value
 
-            # Reached max depth #
-            if depth == self.depth:
-                return self.evaluationFunction(gameState),0
+        # Tìm hành động tốt nhất cho Pacman (agentIndex = 0)
+        alpha, beta = float("-inf"), float("inf")
+        bestAction = None
+        bestValue = float("-inf")
 
-            # All ghosts have finised one round: increase depth #
-            if agent == gameState.getNumAgents() - 1:
-                depth += 1
+        for action in gameState.getLegalActions(0):  # Pacman luôn là agent 0
+            successor = gameState.generateSuccessor(0, action)
+            value = alphaBeta(1, 0, successor, alpha, beta)
+            if value > bestValue:
+                bestValue = value
+                bestAction = action
+            alpha = max(alpha, bestValue)
 
-            # Calculate nextAgent #
-
-            # Last ghost: nextAgent = pacman #
-            if agent == gameState.getNumAgents() - 1:
-                nextAgent = self.index
-
-            # Availiable ghosts. Pick next ghost #
-            else:
-                nextAgent = agent + 1
-
-            # For every successor find minmax value #
-            for action in gameState.getLegalActions(agent):
-                if not result: # First move
-                    nextValue = AB(gameState.generateSuccessor(agent,action),nextAgent,depth,a,b)
-
-                    # Fix result #
-                    result.append(nextValue[0])
-                    result.append(action)
-
-                    # Fix initial a,b (for the first node) #
-                    if agent == self.index:
-                        a = max(result[0],a)
-                    else:
-                        b = min(result[0],b)
-                else:
-                    # Check if minMax value is better than the previous one #
-                    # Chech if we can overpass some nodes                   #
-
-                    # There is no need to search next nodes                 #
-                    # AB Prunning is true                                   #
-                    if result[0] > b and agent == self.index:
-                        return result
-
-                    if result[0] < a and agent != self.index:
-                        return result
-
-                    previousValue = result[0] # Keep previous value
-                    nextValue = AB(gameState.generateSuccessor(agent,action),nextAgent,depth,a,b)
-
-                    # Max agent: Pacman #
-                    if agent == self.index:
-                        if nextValue[0] > previousValue:
-                            result[0] = nextValue[0]
-                            result[1] = action
-                            # a may change #
-                            a = max(result[0],a)
-
-                    # Min agent: Ghost #
-                    else:
-                        if nextValue[0] < previousValue:
-                            result[0] = nextValue[0]
-                            result[1] = action
-                            # b may change #
-                            b = min(result[0],b)
-            return result
-
-        # Call AB with initial depth = 0 and -inf and inf(a,b) values      #
-        # Get an action                                                    #
-        # Pacman plays first -> self.index                                 #
-        return AB(gameState,self.index,0,-float("inf"),float("inf"))[1]
+        return bestAction
 
 class ExpectimaxAgent(MultiAgentSearchAgent):
     """
